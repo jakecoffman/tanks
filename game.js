@@ -92,7 +92,7 @@ GameState.prototype.create = function () {
 
     // Some sounds
     this.pew = this.game.add.sound("pew");
-    this.treads = this.game.add.sound("treads");
+    this.treads = this.game.add.sound("treads", 0.4);
 };
 
 GameState.prototype.shootBullet = function () {
