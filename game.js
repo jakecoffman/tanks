@@ -8,7 +8,9 @@ var GameState = function (game) {
 
 // Load images and sounds
 GameState.prototype.preload = function () {
-    this.game.load.spritesheet('ship', 'assets/gfx/ship.png', 32, 32);
+    this.game.load.image('tank', 'assets/gfx/tank.png');
+    this.game.load.image('bullet', 'assets/gfx/shell.png');
+    this.game.load.image('turret', 'assets/gfx/turret.png');
 };
 
 // Setup the example
@@ -16,17 +18,24 @@ GameState.prototype.create = function () {
     // Set stage background color
     this.game.stage.backgroundColor = 0x333333;
 
-    // Define motion constants
+    // constants
     this.ROTATION_SPEED = 180; // degrees/second
     this.ACCELERATION = 200; // pixels/second/second
     this.MAX_SPEED = 250; // pixels/second
     this.DRAG = 500; // pixels/second
+    this.SHOT_DELAY = 200; // milliseconds (10 bullets/second)
+    this.BULLET_SPEED = 500; // pixels/second
+    this.NUMBER_OF_BULLETS = 3;
+
+    // Simulate a pointer click/tap input at the center of the stage
+    // when the example begins running. Why?
+    this.game.input.activePointer.x = this.game.width / 2;
+    this.game.input.activePointer.y = this.game.height / 2;
 
     // Add the ship to the stage
-    this.ship = this.game.add.sprite(this.game.width / 2, this.game.height / 2, 'ship');
+    this.ship = this.game.add.sprite(this.game.width / 2, this.game.height / 2, 'tank');
     this.ship.anchor.setTo(0.5, 0.5);
     this.ship.angle = -90; // Point the ship up
-//    this.ship.body.collideWorldBounds = true;
 
     // Enable physics on the ship
     this.game.physics.enable(this.ship, Phaser.Physics.ARCADE);
@@ -36,6 +45,31 @@ GameState.prototype.create = function () {
 
     // Add drag to the ship that slows it down when it is not accelerating
     this.ship.body.drag.setTo(this.DRAG, this.DRAG); // x, y
+
+    this.ship.body.collideWorldBounds = true;
+
+    // the turret
+    this.gun = this.game.add.sprite(50, this.game.height / 2, 'turret');
+    this.gun.z = 100;
+    // Set the pivot point to the center of the gun
+    this.gun.anchor.setTo(0.5, 0.5);
+
+    // Create an object pool of bullets
+    this.bulletPool = this.game.add.group();
+    for (var i = 0; i < this.NUMBER_OF_BULLETS; i++) {
+        // Create each bullet and add it to the group.
+        var bullet = this.game.add.sprite(0, 0, 'bullet');
+        this.bulletPool.add(bullet);
+
+        // Set its pivot point to the center of the bullet
+        bullet.anchor.setTo(0.5, 0.5);
+
+        // Enable physics on the bullet
+        this.game.physics.enable(bullet, Phaser.Physics.ARCADE);
+
+        // Set its initial state to "dead".
+        bullet.kill();
+    }
 
     // Capture certain keys to prevent their default actions in the browser.
     // This is only necessary because this is an HTML5 game. Games on other
@@ -55,6 +89,41 @@ GameState.prototype.create = function () {
     );
 };
 
+GameState.prototype.shootBullet = function () {
+    // Enforce a short delay between shots by recording
+    // the time that each bullet is shot and testing if
+    // the amount of time since the last shot is more than
+    // the required delay.
+    if (this.lastBulletShotAt === undefined) this.lastBulletShotAt = 0;
+    if (this.game.time.now - this.lastBulletShotAt < this.SHOT_DELAY) return;
+    this.lastBulletShotAt = this.game.time.now;
+
+    // Get a dead bullet from the pool
+    var bullet = this.bulletPool.getFirstDead();
+
+    // If there aren't any bullets available then don't shoot
+    if (bullet === null || bullet === undefined) return;
+
+    // Revive the bullet
+    // This makes the bullet "alive"
+    bullet.revive();
+
+    // Bullets should kill themselves when they leave the world.
+    // Phaser takes care of this for me by setting this flag
+    // but you can do it yourself by killing the bullet if
+    // its x,y coordinates are outside of the world.
+    bullet.checkWorldBounds = true;
+    bullet.outOfBoundsKill = true;
+
+    // Set the bullet position to the gun position.
+    bullet.reset(this.gun.x, this.gun.y);
+    bullet.rotation = this.gun.rotation;
+
+    // Shoot it in the right direction
+    bullet.body.velocity.x = Math.cos(bullet.rotation) * this.BULLET_SPEED;
+    bullet.body.velocity.y = Math.sin(bullet.rotation) * this.BULLET_SPEED;
+};
+
 // The update() method is called every frame
 GameState.prototype.update = function () {
     if (this.game.time.fps !== 0) {
@@ -66,6 +135,9 @@ GameState.prototype.update = function () {
     if (this.ship.x < 0) this.ship.x = this.game.width;
     if (this.ship.y > this.game.height) this.ship.y = 0;
     if (this.ship.y < 0) this.ship.y = this.game.height;
+
+    this.gun.x = this.ship.x;
+    this.gun.y = this.ship.y;
 
     if (this.input.keyboard.isDown(Phaser.Keyboard.LEFT) || this.input.keyboard.isDown(Phaser.Keyboard.A)) {
         // If the LEFT key is down, rotate left
@@ -83,9 +155,6 @@ GameState.prototype.update = function () {
         // Calculate acceleration vector based on this.angle and this.ACCELERATION
         this.ship.body.acceleration.x = Math.cos(this.ship.rotation) * this.ACCELERATION;
         this.ship.body.acceleration.y = Math.sin(this.ship.rotation) * this.ACCELERATION;
-
-        // Show the frame from the spritesheet with the engine on
-        this.ship.frame = 1;
     } else if (this.input.keyboard.isDown(Phaser.Keyboard.DOWN) || this.input.keyboard.isDown(Phaser.Keyboard.S)) {
         this.ship.body.acceleration.x = -Math.cos(this.ship.rotation) * this.ACCELERATION;
         this.ship.body.acceleration.y = -Math.sin(this.ship.rotation) * this.ACCELERATION;
@@ -95,6 +164,16 @@ GameState.prototype.update = function () {
 
         // Show the frame from the spritesheet with the engine off
         this.ship.frame = 0;
+    }
+
+    // Aim the gun at the pointer.
+    // All this function does is calculate the angle using
+    // Math.atan2(yPointer-yGun, xPointer-xGun)
+    this.gun.rotation = this.game.physics.arcade.angleToPointer(this.gun);
+
+    // Shoot a bullet
+    if (this.game.input.activePointer.isDown) {
+        this.shootBullet();
     }
 };
 
