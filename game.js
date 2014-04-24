@@ -11,6 +11,8 @@ GameState.prototype.preload = function () {
     this.game.load.image('tank', 'assets/gfx/tank.png');
     this.game.load.image('bullet', 'assets/gfx/shell.png');
     this.game.load.image('turret', 'assets/gfx/turret.png');
+    this.game.load.audio('pew', 'assets/sounds/pew.wav');
+    this.game.load.audio('treads', 'assets/sounds/treads.wav');
 };
 
 // Setup the example
@@ -87,6 +89,10 @@ GameState.prototype.create = function () {
     this.fpsText = this.game.add.text(
         20, 20, '', { font: '16px Arial', fill: '#ffffff' }
     );
+
+    // Some sounds
+    this.pew = this.game.add.sound("pew");
+    this.treads = this.game.add.sound("treads");
 };
 
 GameState.prototype.shootBullet = function () {
@@ -122,6 +128,8 @@ GameState.prototype.shootBullet = function () {
     // Shoot it in the right direction
     bullet.body.velocity.x = Math.cos(bullet.rotation) * this.BULLET_SPEED;
     bullet.body.velocity.y = Math.sin(bullet.rotation) * this.BULLET_SPEED;
+
+    this.pew.play();
 };
 
 // The update() method is called every frame
@@ -139,12 +147,15 @@ GameState.prototype.update = function () {
     this.gun.x = this.ship.x;
     this.gun.y = this.ship.y;
 
+    var playTreadSound = false;
     if (this.input.keyboard.isDown(Phaser.Keyboard.LEFT) || this.input.keyboard.isDown(Phaser.Keyboard.A)) {
         // If the LEFT key is down, rotate left
         this.ship.body.angularVelocity = -this.ROTATION_SPEED;
+        playTreadSound = true;
     } else if (this.input.keyboard.isDown(Phaser.Keyboard.RIGHT) || this.input.keyboard.isDown(Phaser.Keyboard.D)) {
         // If the RIGHT key is down, rotate right
         this.ship.body.angularVelocity = this.ROTATION_SPEED;
+        playTreadSound = true;
     } else {
         // Stop rotating
         this.ship.body.angularVelocity = 0;
@@ -155,15 +166,21 @@ GameState.prototype.update = function () {
         // Calculate acceleration vector based on this.angle and this.ACCELERATION
         this.ship.body.acceleration.x = Math.cos(this.ship.rotation) * this.ACCELERATION;
         this.ship.body.acceleration.y = Math.sin(this.ship.rotation) * this.ACCELERATION;
+        playTreadSound = true;
     } else if (this.input.keyboard.isDown(Phaser.Keyboard.DOWN) || this.input.keyboard.isDown(Phaser.Keyboard.S)) {
         this.ship.body.acceleration.x = -Math.cos(this.ship.rotation) * this.ACCELERATION;
         this.ship.body.acceleration.y = -Math.sin(this.ship.rotation) * this.ACCELERATION;
+        playTreadSound = true;
     } else {
         // Otherwise, stop thrusting
         this.ship.body.acceleration.setTo(0, 0);
 
         // Show the frame from the spritesheet with the engine off
         this.ship.frame = 0;
+    }
+
+    if(playTreadSound && !this.treads.isPlaying) {
+        this.treads.play();
     }
 
     // Aim the gun at the pointer.
