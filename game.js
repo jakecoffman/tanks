@@ -22,12 +22,14 @@ GameState.prototype.create = function () {
 
     // constants
     this.ROTATION_SPEED = 180; // degrees/second
-    this.ACCELERATION = 200; // pixels/second/second
-    this.MAX_SPEED = 250; // pixels/second
-    this.DRAG = 500; // pixels/second
+    this.ACCELERATION = 10; // pixels/second/second
+    this.MAX_SPEED = 100; // pixels/second
+    this.DRAG = 1000; // pixels/second
     this.SHOT_DELAY = 200; // milliseconds (10 bullets/second)
     this.BULLET_SPEED = 500; // pixels/second
     this.NUMBER_OF_BULLETS = 3;
+
+    this.currentSpeed = 0;
 
     // Simulate a pointer click/tap input at the center of the stage
     // when the example begins running. Why?
@@ -162,22 +164,31 @@ GameState.prototype.update = function () {
     }
 
     if (this.input.keyboard.isDown(Phaser.Keyboard.UP) || this.input.keyboard.isDown(Phaser.Keyboard.W)) {
-        // If the UP key is down, thrust
-        // Calculate acceleration vector based on this.angle and this.ACCELERATION
-        this.ship.body.acceleration.x = Math.cos(this.ship.rotation) * this.ACCELERATION;
-        this.ship.body.acceleration.y = Math.sin(this.ship.rotation) * this.ACCELERATION;
+        if(this.currentSpeed < this.MAX_SPEED) {
+            this.currentSpeed += this.ACCELERATION;
+        }
+        if(this.currentSpeed > this.MAX_SPEED) {
+            this.currentSpeed = this.MAX_SPEED;
+        }
         playTreadSound = true;
     } else if (this.input.keyboard.isDown(Phaser.Keyboard.DOWN) || this.input.keyboard.isDown(Phaser.Keyboard.S)) {
-        this.ship.body.acceleration.x = -Math.cos(this.ship.rotation) * this.ACCELERATION;
-        this.ship.body.acceleration.y = -Math.sin(this.ship.rotation) * this.ACCELERATION;
+        if(this.currentSpeed > -this.MAX_SPEED) {
+            this.currentSpeed -= this.ACCELERATION;
+        }
+        if(this.currentSpeed < -this.MAX_SPEED) {
+            this.currentSpeed = -this.MAX_SPEED;
+        }
         playTreadSound = true;
     } else {
-        // Otherwise, stop thrusting
+        if(this.currentSpeed > 0) {
+            this.currentSpeed -= 4;
+        } else if(this.currentSpeed < 0) {
+            this.currentSpeed += 4;
+        }
         this.ship.body.acceleration.setTo(0, 0);
-
-        // Show the frame from the spritesheet with the engine off
-        this.ship.frame = 0;
     }
+
+    game.physics.arcade.velocityFromRotation(this.ship.rotation, this.currentSpeed, this.ship.body.velocity);
 
     if(playTreadSound && !this.treads.isPlaying) {
         this.treads.play();
