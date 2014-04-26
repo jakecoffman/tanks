@@ -11,6 +11,8 @@ GameState.prototype.preload = function () {
     this.game.load.image('tank', 'assets/gfx/tank.png');
     this.game.load.image('bullet', 'assets/gfx/shell.png');
     this.game.load.image('turret', 'assets/gfx/turret.png');
+    this.game.load.image('ground', 'assets/gfx/ground.png');
+
     this.game.load.audio('pew', 'assets/sounds/pew.wav');
     this.game.load.audio('treads', 'assets/sounds/treads.wav');
 };
@@ -46,7 +48,7 @@ GameState.prototype.create = function () {
 
     // Enable physics on the ship
     this.game.physics.p2.enable(this.ship);
-
+    this.ship.body.setRectangle(20, 32, 0, 0);
     // Set maximum velocity
     this.ship.body.maxVelocity = this.MAX_SPEED; // x, y
 
@@ -57,7 +59,6 @@ GameState.prototype.create = function () {
 
     // the turret
     this.gun = this.game.add.sprite(50, this.game.height / 2, 'turret');
-    this.gun.z = 100;
     // Set the pivot point to the center of the gun
     this.gun.anchor.setTo(0.5, 0.5);
 
@@ -99,7 +100,24 @@ GameState.prototype.create = function () {
     // Some sounds
     this.pew = this.game.add.sound("pew");
     this.treads = this.game.add.sound("treads", 0.4);
+
+    this.ground = this.game.add.sprite(128, 128, 'ground');
+    this.game.physics.p2.enable(this.ground);
+    this.ground.body.setRectangle(32, 32, 0, 0);
+    this.ground.body.static = true;
+//    this.ground.body.motionState = p2.Body.STATIC;
+//    this.ship.body.createBodyCallback(this.ground, hitGround, this);
+
+    //  And before this will happen, we need to turn on impact events for the world
+//    game.physics.p2.setImpactEvents(true);
 };
+
+function hitGround(body1, body2) {
+    //  body1 is the space ship (as it's the body that owns the callback)
+    //  body2 is the body it impacted with, in this case our panda
+    //  As body2 is a Phaser.Physics.P2.Body object, you access its own (the sprite) via the sprite property:
+    body2.velocity = 0;
+}
 
 GameState.prototype.shootBullet = function () {
     // Enforce a short delay between shots by recording
