@@ -110,7 +110,7 @@ GameState.prototype.shootBullet = function () {
     var bullet = this.bulletPool.getFirstDead();
 
     // If there aren't any bullets available then don't shoot
-    if (bullet === null || bullet === undefined) return;
+    if (bullet === null) return;
 
     // Revive the bullet
     // This makes the bullet "alive"
