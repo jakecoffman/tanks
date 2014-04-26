@@ -17,11 +17,14 @@ GameState.prototype.preload = function () {
 
 // Setup the example
 GameState.prototype.create = function () {
+    this.game.physics.startSystem(Phaser.Physics.P2JS);
+    this.game.physics.p2.defaultRestitution = 0.8;
+
     // Set stage background color
     this.game.stage.backgroundColor = 0x333333;
 
     // constants
-    this.ROTATION_SPEED = 180; // degrees/second
+    this.ROTATION_SPEED = 100; // degrees/second
     this.ACCELERATION = 10; // pixels/second/second
     this.MAX_SPEED = 100; // pixels/second
     this.DRAG = 1000; // pixels/second
@@ -42,13 +45,13 @@ GameState.prototype.create = function () {
     this.ship.angle = -90; // Point the ship up
 
     // Enable physics on the ship
-    this.game.physics.enable(this.ship, Phaser.Physics.ARCADE);
+    this.game.physics.p2.enable(this.ship);
 
     // Set maximum velocity
-    this.ship.body.maxVelocity.setTo(this.MAX_SPEED, this.MAX_SPEED); // x, y
+    this.ship.body.maxVelocity = this.MAX_SPEED; // x, y
 
     // Add drag to the ship that slows it down when it is not accelerating
-    this.ship.body.drag.setTo(this.DRAG, this.DRAG); // x, y
+    this.ship.body.drag = this.DRAG; // x, y
 
     this.ship.body.collideWorldBounds = true;
 
@@ -74,6 +77,7 @@ GameState.prototype.create = function () {
         // Set its initial state to "dead".
         bullet.kill();
     }
+    this.lastBulletShotAt = 0;
 
     // Capture certain keys to prevent their default actions in the browser.
     // This is only necessary because this is an HTML5 game. Games on other
@@ -102,7 +106,6 @@ GameState.prototype.shootBullet = function () {
     // the time that each bullet is shot and testing if
     // the amount of time since the last shot is more than
     // the required delay.
-    if (this.lastBulletShotAt === undefined) this.lastBulletShotAt = 0;
     if (this.game.time.now - this.lastBulletShotAt < this.SHOT_DELAY) return;
     this.lastBulletShotAt = this.game.time.now;
 
@@ -131,7 +134,7 @@ GameState.prototype.shootBullet = function () {
     bullet.body.velocity.x = Math.cos(bullet.rotation) * this.BULLET_SPEED;
     bullet.body.velocity.y = Math.sin(bullet.rotation) * this.BULLET_SPEED;
 
-    this.pew.play();
+    this.pew.play('');
 };
 
 // The update() method is called every frame
@@ -152,11 +155,11 @@ GameState.prototype.update = function () {
     var playTreadSound = false;
     if (this.input.keyboard.isDown(Phaser.Keyboard.LEFT) || this.input.keyboard.isDown(Phaser.Keyboard.A)) {
         // If the LEFT key is down, rotate left
-        this.ship.body.angularVelocity = -this.ROTATION_SPEED;
+        this.ship.body.rotateLeft(this.ROTATION_SPEED);
         playTreadSound = true;
     } else if (this.input.keyboard.isDown(Phaser.Keyboard.RIGHT) || this.input.keyboard.isDown(Phaser.Keyboard.D)) {
         // If the RIGHT key is down, rotate right
-        this.ship.body.angularVelocity = this.ROTATION_SPEED;
+        this.ship.body.rotateRight(this.ROTATION_SPEED);
         playTreadSound = true;
     } else {
         // Stop rotating
@@ -181,17 +184,17 @@ GameState.prototype.update = function () {
         playTreadSound = true;
     } else {
         if(this.currentSpeed > 0) {
-            this.currentSpeed -= 4;
+            this.currentSpeed -= 10;
         } else if(this.currentSpeed < 0) {
-            this.currentSpeed += 4;
+            this.currentSpeed += 10;
         }
-        this.ship.body.acceleration.setTo(0, 0);
+        this.ship.body.acceleration = 0;
     }
 
-    game.physics.arcade.velocityFromRotation(this.ship.rotation, this.currentSpeed, this.ship.body.velocity);
+    this.ship.body.moveForward(this.currentSpeed);
 
     if(playTreadSound && !this.treads.isPlaying) {
-        this.treads.play();
+        this.treads.play('');
     }
 
     // Aim the gun at the pointer.
